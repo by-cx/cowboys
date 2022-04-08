@@ -1,0 +1,11 @@
+version: '3'
+services:
+  nats:
+    image: docker.io/library/nats:2.7-alpine
+    restart: unless-stopped
+    networks:
+    - mynetwork
+    ports:
+    - 4222:4222
+networks:
+  mynetwork:
