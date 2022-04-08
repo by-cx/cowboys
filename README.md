@@ -44,6 +44,11 @@ Publish a message to the battlefield:
 
     nats pub --count 1 battlefield -w '{"type": "tick", "number": 1}'
 
-## Compromises
+## Things I would finish if I had more time
 
 Originally I wanted cowboys to check readiness of their enemies and let the synchronization up to them. But it would took me some extra time I don't have now. So I decided to use simpler solution where Universe checks if all cowboys are ready.
+
+I used opportunistic testing in some cases. That part requires a little bit more love because it makes
+the tests less deterministic and slower.
+
+Missing tests for main functions.

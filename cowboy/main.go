@@ -24,10 +24,10 @@ type CowboyFight struct {
 
 // Loads cowboy specs from the persistent storage based on his name.
 // Return representation of myself, my enemies and error if there is any.
-func cowboyLoader(name string) (types.Cowboy, Cowboys, error) {
+func cowboyLoader(path string, name string) (types.Cowboy, Cowboys, error) {
 	cowboys := Cowboys{}
 
-	body, err := ioutil.ReadFile("cowboys.js")
+	body, err := ioutil.ReadFile(path)
 	if err != nil {
 		return types.Cowboy{}, Cowboys{}, fmt.Errorf("loading cowboys.js error: %v", err)
 	}
@@ -48,14 +48,18 @@ func cowboyLoader(name string) (types.Cowboy, Cowboys, error) {
 		}
 	}
 
-	return myself, enemies, fmt.Errorf("cowboy %s not found", name)
+	if myself.Name == "" {
+		return myself, enemies, fmt.Errorf("cowboy %s not found", name)
+	}
+
+	return myself, enemies, nil
 }
 
 // Receives a shot from another cowboy
 func (c *CowboyFight) receiveShot(message types.Message) {
 	if message.Cowboy.Name == c.Cowboy.Name {
-		c.Cowboy.Damage -= message.ShotValue
-		c.shareStatus()
+		c.Cowboy.Health -= message.ShotValue
+		c.ShareStatus()
 	}
 }
 
@@ -88,7 +92,7 @@ func (c *CowboyFight) shoot() {
 	})
 }
 
-func (c *CowboyFight) shareStatus() {
+func (c *CowboyFight) ShareStatus() {
 	c.Driver.SendMessage(types.Message{
 		Source:    c.Cowboy.Name,
 		Type:      types.MessageTypeStatus,
@@ -105,19 +109,22 @@ func (c *CowboyFight) handler(message types.Message) {
 		c.tick = message.Tick
 
 		if message.Tick > 0 {
-			if message.Tick%2 == 0 { // even is time to shoot
+			if message.Tick%2 == 1 { // even is time to shoot
 				c.shoot()
 
 			} else { // odd is time to check what happend
+				// Check if I am dead
+				if c.Cowboy.Health <= 0 {
+					log.Println("Dead!")
+					c.ExitCh <- true
+					return
+				}
+
 				// Check if I am the last one
 				if len(c.aliveEnemies()) == 0 {
 					log.Println("Victory!")
 					c.ExitCh <- true
-				}
-
-				// Check if I am dead
-				if c.Cowboy.Health <= 0 {
-					c.ExitCh <- true
+					return
 				}
 			}
 		}
@@ -128,6 +135,7 @@ func (c *CowboyFight) handler(message types.Message) {
 		if message.Cowboy.Name != c.Cowboy.Name {
 			c.Enemies[message.Cowboy.Name] = message.Cowboy
 		}
+		return
 	}
 
 	// Receive a shot for yourself but also for your enemies
@@ -142,7 +150,7 @@ func main() {
 	cowboyFight := CowboyFight{}
 
 	// Load info about our cowboy
-	cowboy, enemies, err := cowboyLoader(config.CowboyIdent)
+	cowboy, enemies, err := cowboyLoader(config.CowboysPath, "John")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -162,7 +170,7 @@ func main() {
 	cowboyFight.Driver = driver
 	cowboyFight.Enemies = enemies
 	cowboyFight.ExitCh = make(chan bool)
-	cowboyFight.shareStatus()
+	cowboyFight.ShareStatus()
 
 	// Any error in the driver is fatal so we can exit
 	go func() {

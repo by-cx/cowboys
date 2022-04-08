@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Driver      string `envconfig:"DRIVER" required:"true" default:"nats"`
 	CowboyIdent string `envconfig:"COWBOY_IDENT" required:"true"`
+	CowboysPath string `envconfig:"COWBOYS_PATH" required:"true" default:"cowboys.js"`
 }
 
 // GetConfig return configuration created based on environment variables
