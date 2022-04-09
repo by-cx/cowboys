@@ -1,8 +1,10 @@
-package types
+package common
 
 import (
 	"encoding/json"
 )
+
+type Cowboys map[string]Cowboy
 
 // Cowboy represents a single fighter.
 type Cowboy struct {
@@ -18,6 +20,7 @@ type MessageHandler func(Message)
 const MessageTypeTick = "tick"
 const MessageTypeShoot = "shoot"
 const MessageTypeStatus = "status"
+const MessageTypeCorruption = "corruption"
 
 // Message represents single event that happend in the universe
 type Message struct {

@@ -1,64 +1,30 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"log"
 	"math/rand"
+	"strings"
 	"time"
 
+	"github.com/by-cx/cowboys/common"
 	"github.com/by-cx/cowboys/driver_nats"
-	"github.com/by-cx/cowboys/types"
 )
 
 // CowboyFight represents inner state of each cowboy and implements the figting logic.
 type CowboyFight struct {
-	Cowboy  types.Cowboy
-	Driver  types.Driver
-	Enemies Cowboys
+	Cowboy  common.Cowboy
+	Driver  common.Driver
+	Enemies common.Cowboys
 	ExitCh  chan bool
 
 	tick int // Unit of time used to synchronize the whole cluster of cowboys
 }
 
-// Loads cowboy specs from the persistent storage based on his name.
-// Return representation of myself, my enemies and error if there is any.
-func cowboyLoader(path string, name string) (types.Cowboy, Cowboys, error) {
-	cowboys := Cowboys{}
-
-	body, err := ioutil.ReadFile(path)
-	if err != nil {
-		return types.Cowboy{}, Cowboys{}, fmt.Errorf("loading cowboys.js error: %v", err)
-	}
-
-	err = json.Unmarshal(body, &cowboys)
-	if err != nil {
-		return types.Cowboy{}, Cowboys{}, fmt.Errorf("parsing cowboys.js error: %v", err)
-	}
-
-	enemies := make(Cowboys)
-	var myself types.Cowboy
-
-	for _, cowboy := range cowboys {
-		if cowboy.Name == name {
-			myself = cowboy
-		} else {
-			enemies[cowboy.Name] = cowboy
-		}
-	}
-
-	if myself.Name == "" {
-		return myself, enemies, fmt.Errorf("cowboy %s not found", name)
-	}
-
-	return myself, enemies, nil
-}
-
 // Receives a shot from another cowboy
-func (c *CowboyFight) receiveShot(message types.Message) {
+func (c *CowboyFight) receiveShot(message common.Message) {
 	if message.Cowboy.Name == c.Cowboy.Name {
 		c.Cowboy.Health -= message.ShotValue
+		log.Printf("TICK %d: I received a %d shot, my health %d\n", c.tick, message.ShotValue, c.Cowboy.Health)
 		c.ShareStatus()
 	}
 }
@@ -71,6 +37,8 @@ func (c *CowboyFight) aliveEnemies() []string {
 			aliveEnemies = append(aliveEnemies, name)
 		}
 	}
+
+	log.Printf("TICK %d: alive enemies: %s\n", c.tick, strings.Join(aliveEnemies, ", "))
 	return aliveEnemies
 }
 
@@ -83,9 +51,11 @@ func (c *CowboyFight) shoot() {
 
 	damage := rand.Intn(c.Cowboy.Damage + 1)
 
-	c.Driver.SendMessage(types.Message{
+	log.Printf("TICK %d: I shoot on %s with %d damage\n", c.tick, enemy, damage)
+
+	c.Driver.SendMessage(common.Message{
 		Source:    c.Cowboy.Name,
-		Type:      types.MessageTypeShoot,
+		Type:      common.MessageTypeShoot,
 		Tick:      c.tick,
 		Cowboy:    c.Enemies[enemy],
 		ShotValue: damage,
@@ -93,9 +63,9 @@ func (c *CowboyFight) shoot() {
 }
 
 func (c *CowboyFight) ShareStatus() {
-	c.Driver.SendMessage(types.Message{
+	c.Driver.SendMessage(common.Message{
 		Source:    c.Cowboy.Name,
-		Type:      types.MessageTypeStatus,
+		Type:      common.MessageTypeStatus,
 		Tick:      c.tick,
 		Cowboy:    c.Cowboy,
 		ShotValue: 0,
@@ -103,9 +73,9 @@ func (c *CowboyFight) ShareStatus() {
 }
 
 // Processes incoming message from the universe. It's runs main loop of cowboy.
-func (c *CowboyFight) handler(message types.Message) {
+func (c *CowboyFight) handler(message common.Message) {
 	// Process ticks
-	if message.Type == types.MessageTypeTick {
+	if message.Type == common.MessageTypeTick {
 		c.tick = message.Tick
 
 		if message.Tick > 0 {
@@ -115,23 +85,26 @@ func (c *CowboyFight) handler(message types.Message) {
 			} else { // odd is time to check what happend
 				// Check if I am dead
 				if c.Cowboy.Health <= 0 {
-					log.Println("Dead!")
+					log.Printf("TICK %d: I am DEAD!\n", c.tick)
 					c.ExitCh <- true
 					return
 				}
 
 				// Check if I am the last one
 				if len(c.aliveEnemies()) == 0 {
-					log.Println("Victory!")
+					log.Printf("TICK %d: I won!\n", c.tick)
 					c.ExitCh <- true
 					return
 				}
 			}
+		} else {
+			// Share status when tick is 0 because universe is waiting for us
+			c.ShareStatus()
 		}
 	}
 
 	// Store status update of my enemies
-	if message.Type == types.MessageTypeStatus {
+	if message.Type == common.MessageTypeStatus {
 		if message.Cowboy.Name != c.Cowboy.Name {
 			c.Enemies[message.Cowboy.Name] = message.Cowboy
 		}
@@ -139,18 +112,18 @@ func (c *CowboyFight) handler(message types.Message) {
 	}
 
 	// Receive a shot for yourself but also for your enemies
-	if message.Type == types.MessageTypeShoot {
+	if message.Type == common.MessageTypeShoot {
 		c.receiveShot(message)
 	}
 }
 
 func main() {
 	config := getConfig()
-	var driver types.Driver
+	var driver common.Driver
 	cowboyFight := CowboyFight{}
 
 	// Load info about our cowboy
-	cowboy, enemies, err := cowboyLoader(config.CowboysPath, "John")
+	cowboy, enemies, err := common.CowboyLoader(config.CowboysPath, "John")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -172,11 +145,14 @@ func main() {
 	cowboyFight.ExitCh = make(chan bool)
 	cowboyFight.ShareStatus()
 
+	log.Printf("%s has born\n", cowboyFight.Cowboy.Name)
+
 	// Any error in the driver is fatal so we can exit
 	go func() {
 		errors := driver.GetErrorsChan()
 		err := <-errors
 		log.Println(err)
+		// TODO: send universe corruption event
 		cowboyFight.ExitCh <- true
 	}()
 

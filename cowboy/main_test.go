@@ -6,14 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/by-cx/cowboys/common"
 	"github.com/by-cx/cowboys/driver_dummy"
-	"github.com/by-cx/cowboys/types"
 	"github.com/stretchr/testify/assert"
 )
 
 var driver driver_dummy.DummyDriver
 var cowboyFight CowboyFight
-var backupCowboy types.Cowboy
+var backupCowboy common.Cowboy
 
 const testCowboyName = "John"
 
@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 
 	driver = driver_dummy.Init(cowboyFight.handler)
 
-	cowboy, enemies, err := cowboyLoader("../cowboys.js", testCowboyName)
+	cowboy, enemies, err := common.CowboyLoader("../cowboys.js", testCowboyName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,23 +52,36 @@ func TestCowboyFight(t *testing.T) {
 	assert.Equal(t, message.Cowboy.Name, testCowboyName)
 	assert.Equal(t, message.Cowboy.Health, 10)
 	assert.Equal(t, message.Cowboy.Damage, 1)
+}
 
-	// Test dead shots
+func TestCowboyFightHandlerZeroTick(t *testing.T) {
+	// Test odd tick
+	func() {
+		driver.InjectMessageCh <- common.Message{
+			Source: "universe",
+			Type:   common.MessageTypeTick,
+			Tick:   0,
+		}
+	}()
 
+	message := <-driver.OutgoingMessageCh
+	assert.Equal(t, message.Type, common.MessageTypeStatus)
+	assert.Equal(t, message.Tick, 0)
+	assert.Equal(t, message.Cowboy.Name, testCowboyName)
 }
 
 func TestCowboyFightHandlerOddTick(t *testing.T) {
 	// Test odd tick
 	func() {
-		driver.InjectMessageCh <- types.Message{
+		driver.InjectMessageCh <- common.Message{
 			Source: "universe",
-			Type:   types.MessageTypeTick,
+			Type:   common.MessageTypeTick,
 			Tick:   1,
 		}
 	}()
 
 	message := <-driver.OutgoingMessageCh
-	assert.Equal(t, message.Type, types.MessageTypeShoot)
+	assert.Equal(t, message.Type, common.MessageTypeShoot)
 	assert.Equal(t, message.Tick, 1)
 	assert.NotEqual(t, message.Cowboy.Name, testCowboyName)
 }
@@ -77,11 +90,11 @@ func TestCowboyFightHandlerEnemiesStatusUpdate(t *testing.T) {
 	assert.Equal(t, cowboyFight.Enemies["Bill"].Health, 8)
 
 	func() {
-		driver.InjectMessageCh <- types.Message{
+		driver.InjectMessageCh <- common.Message{
 			Source: "Bill",
-			Type:   types.MessageTypeStatus,
+			Type:   common.MessageTypeStatus,
 			Tick:   1,
-			Cowboy: types.Cowboy{
+			Cowboy: common.Cowboy{
 				Name:   "Bill",
 				Health: 1,
 				Damage: 2,
@@ -98,12 +111,12 @@ func TestCowboyFightHandlerEnemiesStatusUpdate(t *testing.T) {
 func TestCowboyFightHandlerEvenTick(t *testing.T) {
 	// Test even tick
 	backupEnemies := cowboyFight.Enemies
-	cowboyFight.Enemies = make(Cowboys)
+	cowboyFight.Enemies = make(common.Cowboys)
 
 	func() {
-		driver.InjectMessageCh <- types.Message{
+		driver.InjectMessageCh <- common.Message{
 			Source: "universe",
-			Type:   types.MessageTypeTick,
+			Type:   common.MessageTypeTick,
 			Tick:   2,
 		}
 	}()
@@ -119,9 +132,9 @@ func TestCowboyFightHandlerShootToDead(t *testing.T) {
 
 	// First shot
 	func() {
-		driver.InjectMessageCh <- types.Message{
+		driver.InjectMessageCh <- common.Message{
 			Source:    "Sam",
-			Type:      types.MessageTypeShoot,
+			Type:      common.MessageTypeShoot,
 			Tick:      1,
 			Cowboy:    cowboyFight.Cowboy,
 			ShotValue: 6,
@@ -129,15 +142,15 @@ func TestCowboyFightHandlerShootToDead(t *testing.T) {
 	}()
 
 	message := <-driver.OutgoingMessageCh
-	assert.Equal(t, message.Type, types.MessageTypeStatus)
+	assert.Equal(t, message.Type, common.MessageTypeStatus)
 	assert.Equal(t, 4, message.Cowboy.Health)
 	assert.Equal(t, 4, cowboyFight.Cowboy.Health)
 
 	// Second shot, deadly
 	func() {
-		driver.InjectMessageCh <- types.Message{
+		driver.InjectMessageCh <- common.Message{
 			Source:    "Sam",
-			Type:      types.MessageTypeShoot,
+			Type:      common.MessageTypeShoot,
 			Tick:      1,
 			Cowboy:    cowboyFight.Cowboy,
 			ShotValue: 6,
@@ -145,15 +158,15 @@ func TestCowboyFightHandlerShootToDead(t *testing.T) {
 	}()
 
 	message = <-driver.OutgoingMessageCh
-	assert.Equal(t, message.Type, types.MessageTypeStatus)
+	assert.Equal(t, message.Type, common.MessageTypeStatus)
 	assert.Equal(t, -2, message.Cowboy.Health)
 	assert.Equal(t, -2, cowboyFight.Cowboy.Health)
 
 	// Even tick to check if cowboy dies
 	func() {
-		driver.InjectMessageCh <- types.Message{
+		driver.InjectMessageCh <- common.Message{
 			Source: "universe",
-			Type:   types.MessageTypeTick,
+			Type:   common.MessageTypeTick,
 			Tick:   2,
 		}
 	}()
@@ -174,9 +187,9 @@ func TestCowboyFightReceiveShot(t *testing.T) {
 	cowboyFight.Cowboy = backupCowboy
 
 	go func() {
-		cowboyFight.receiveShot(types.Message{
+		cowboyFight.receiveShot(common.Message{
 			Source:    "Sam",
-			Type:      types.MessageTypeShoot,
+			Type:      common.MessageTypeShoot,
 			Tick:      1,
 			Cowboy:    cowboyFight.Cowboy,
 			ShotValue: 6,
@@ -186,7 +199,7 @@ func TestCowboyFightReceiveShot(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	assert.Equal(t, 4, cowboyFight.Cowboy.Health)
 	message := <-driver.OutgoingMessageCh
-	assert.Equal(t, message.Type, types.MessageTypeStatus)
+	assert.Equal(t, message.Type, common.MessageTypeStatus)
 }
 
 func TestCowboyFightAliveEnemies(t *testing.T) {
@@ -202,7 +215,7 @@ func TestCowboyFightShoot(t *testing.T) {
 
 	time.Sleep(time.Second)
 	message := <-driver.OutgoingMessageCh
-	assert.Equal(t, message.Type, types.MessageTypeShoot)
+	assert.Equal(t, message.Type, common.MessageTypeShoot)
 	assert.GreaterOrEqual(t, message.ShotValue, 0)
 }
 
@@ -215,6 +228,6 @@ func TestCowboyFightShareStatus(t *testing.T) {
 
 	time.Sleep(time.Second)
 	message := <-driver.OutgoingMessageCh
-	assert.Equal(t, message.Type, types.MessageTypeStatus)
+	assert.Equal(t, message.Type, common.MessageTypeStatus)
 	assert.Equal(t, message.Cowboy, backupCowboy)
 }

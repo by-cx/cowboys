@@ -6,12 +6,12 @@ import (
 	"log"
 	"time"
 
-	"github.com/by-cx/cowboys/types"
+	"github.com/by-cx/cowboys/common"
 	"github.com/nats-io/nats.go"
 )
 
 type NATSDriver struct {
-	MessageHandler types.MessageHandler
+	MessageHandler common.MessageHandler
 	errorsCh       chan error
 
 	nc *nats.Conn
@@ -32,7 +32,7 @@ func (n NATSDriver) Close() {
 }
 
 // SendMessage shares a message with the universe
-func (n NATSDriver) SendMessage(message types.Message) {
+func (n NATSDriver) SendMessage(message common.Message) {
 	config := getConfig()
 
 	body, err := message.Bytes()
@@ -49,7 +49,7 @@ func (n NATSDriver) SendMessage(message types.Message) {
 }
 
 func (n *NATSDriver) handler(m *nats.Msg) {
-	var message types.Message
+	var message common.Message
 	err := json.Unmarshal(m.Data, &message)
 	if err != nil {
 		n.errorsCh <- fmt.Errorf("message handling error: %v", err)
@@ -60,7 +60,7 @@ func (n *NATSDriver) handler(m *nats.Msg) {
 }
 
 // Init connect to the NATS server and subscribes to configured subject.
-func Init(messageHandler types.MessageHandler) (types.Driver, error) {
+func Init(messageHandler common.MessageHandler) (common.Driver, error) {
 	config := getConfig()
 
 	driver := NATSDriver{
