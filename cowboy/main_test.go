@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 
 	driver = driver_dummy.Init(cowboyFight.handler)
 
-	cowboy, enemies, err := common.CowboyLoader("../cowboys.js", testCowboyName)
+	cowboy, enemies, err := common.CowboyLoader("../cowboys.json", testCowboyName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -221,6 +221,7 @@ func TestCowboyFightShoot(t *testing.T) {
 
 func TestCowboyFightShareStatus(t *testing.T) {
 	cowboyFight.Cowboy = backupCowboy
+	backupCowboy.MaxHealth = 10
 
 	go func() {
 		cowboyFight.ShareStatus()
@@ -230,4 +231,6 @@ func TestCowboyFightShareStatus(t *testing.T) {
 	message := <-driver.OutgoingMessageCh
 	assert.Equal(t, message.Type, common.MessageTypeStatus)
 	assert.Equal(t, message.Cowboy, backupCowboy)
+	assert.Equal(t, message.Cowboy.MaxHealth, backupCowboy.Health)
+	assert.Greater(t, message.Cowboy.MaxHealth, 0)
 }

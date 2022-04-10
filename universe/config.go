@@ -10,7 +10,7 @@ import (
 type Config struct {
 	Driver            string `envconfig:"DRIVER" required:"true" default:"nats"`
 	SleepBetweenTicks int    `envconfig:"SLEEP_BETWEEN_TICKS" required:"true" default:"1"`
-	CowboysPath       string `envconfig:"COWBOYS_PATH" required:"true" default:"cowboys.js"`
+	CowboysPath       string `envconfig:"COWBOYS_PATH" required:"true" default:"cowboys.json"`
 }
 
 // GetConfig return configuration created based on environment variables

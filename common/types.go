@@ -8,9 +8,10 @@ type Cowboys map[string]Cowboy
 
 // Cowboy represents a single fighter.
 type Cowboy struct {
-	Name   string `json:"name"`
-	Health int    `json:"health"`
-	Damage int    `json:"damage"`
+	Name      string `json:"name"`
+	Health    int    `json:"health"`
+	MaxHealth int    `json:"max_health"`
+	Damage    int    `json:"damage"`
 }
 
 // MessageHandler is a function that process all incoming

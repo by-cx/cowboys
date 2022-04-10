@@ -63,6 +63,10 @@ func (c *CowboyFight) shoot() {
 }
 
 func (c *CowboyFight) ShareStatus() {
+	if c.Cowboy.MaxHealth == 0 {
+		c.Cowboy.MaxHealth = c.Cowboy.Health
+	}
+
 	c.Driver.SendMessage(common.Message{
 		Source:    c.Cowboy.Name,
 		Type:      common.MessageTypeStatus,
@@ -123,7 +127,7 @@ func main() {
 	cowboyFight := CowboyFight{}
 
 	// Load info about our cowboy
-	cowboy, enemies, err := common.CowboyLoader(config.CowboysPath, "John")
+	cowboy, enemies, err := common.CowboyLoader(config.CowboysPath, config.CowboyIdent)
 	if err != nil {
 		log.Fatal(err)
 	}

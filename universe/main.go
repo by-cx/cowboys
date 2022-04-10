@@ -73,7 +73,10 @@ func (u *Universe) Ticking() {
 
 		// When only one or none cowboy is alive there is no need for time itself
 		if u.aliveCowboys() <= 1 {
-			log.Printf("TICK %d: the fight is over\n", u.tick)
+			log.Printf("TICK %d: the fight is over, let's do last tick\n", u.tick)
+			// The last tick is needed for the cowboys to figure out they won and let them end themselves. Otherwise they are waiting til end of the real universe.
+			u.doTick()
+			time.Sleep(time.Second) // we give doTick time to send the message otherwise the process ends before it's sent
 			return
 		}
 	}
@@ -95,7 +98,6 @@ func (u *Universe) ready() bool {
 
 func main() {
 	config := getConfig()
-	var driver common.Driver
 	var err error
 
 	// Load cowboys
@@ -128,5 +130,5 @@ func main() {
 	log.Println("This universe is not needed anymore")
 
 	// Close anything related to the communication driver
-	driver.Close()
+	universe.Driver.Close()
 }

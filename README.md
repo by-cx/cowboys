@@ -46,22 +46,46 @@ Publish a message to the battlefield:
 
 ## Quick start
 
-Three binaries:
+Three services:
 
 * universe - synchronization of the cowboys
 * cowboy - implementation of a single cowboy
 * timetraveler - logs everything what happens, record of the battle is going to be in his stdout (make sure this one runs before everything else starts)
 
+All three services are configurable but the most important is output of *timetraveler* that logs progress of the battle.
+
+To boot up everything run this:
+
+```shell
 docker-compose up -d
 docker-compose logs -f timetraveler
+```
+
+To check if all is good run this:
+
+```shell
+make test
+```
+
+To build a new docker image follow this:
+
+```shell
+make image
+```
 
 ## Things I would finish if I had more time
 
-Originally I wanted cowboys to check readiness of their enemies and let the synchronization up to them. But it would took me some extra time I don't have now. So I decided to use simpler solution where Universe checks if all cowboys are ready.
+Originally I wanted cowboys to check readiness of their enemies and let the synchronization up to them. It would add a layer or randomness
+to the loop but same time it would take me some extra time I don't have now. So I decided to use simpler solution where Universe checks if
+all cowboys are ready.
 
 I used opportunistic testing in some cases. That part requires a little bit more love because it makes
-the tests less deterministic and slower.
+the tests less deterministic and slower. Good enough for this case I guess.
 
-Tests can freeze testing if there is a bug in the code.
+Tests can "freeze" testing process if there is a bug in the code.
 
 Missing tests for main functions.
+
+Missing test for message handler in TimeTraveler. I use simple log.Printf() and log.Println() and it would require a little bit more abstraction to be more user friendly.
+
+There will be some race conditions hidden. I haven't had enough time to think it through so it's probably possible to break the parts with unexpected inputs and crashes.

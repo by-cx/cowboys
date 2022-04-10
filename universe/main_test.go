@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 	var err error
 
 	// Load cowboys from the test file
-	_, cowboys, err = common.CowboyLoader("../cowboys.js", "")
+	_, cowboys, err = common.CowboyLoader("../cowboys.json", "")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -102,7 +102,12 @@ func TestTicking(t *testing.T) {
 		universe.Cowboys[name] = cowboy
 	}
 
-	// There is no message here, after the last message the code waits for one second and then it finishes because everyone is dead
+	// Check if final tick has been sent
+	message = <-driver.OutgoingMessageCh
+	assert.Equal(t, message.Type, common.MessageTypeTick)
+	assert.Equal(t, 3, message.Tick)
+
+	// There are no messages here, after the last message the code waits for one second and then it finishes because everyone is dead
 	assert.True(t, <-ch)
 }
 

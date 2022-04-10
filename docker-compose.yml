@@ -7,5 +7,90 @@ services:
     - mynetwork
     ports:
     - 4222:4222
+  universe:
+    image: docker.io/creckx/foo5aiye:v1
+    command: /usr/local/bin/universe
+    restart: on-failure
+    depends_on:
+    - nats
+    environment:
+      NATS_URL: tcp://nats:4222
+    volumes:
+      - ./cowboys.json:/srv/cowboys.json
+  timetraveler:
+    image: docker.io/creckx/foo5aiye:v1
+    command: /usr/local/bin/timetraveler
+    restart: on-failure
+    depends_on:
+      - universe
+      - nats
+    environment:
+      NATS_URL: tcp://nats:4222
+  cowboy1:
+    image: docker.io/creckx/foo5aiye:v1
+    command: /usr/local/bin/cowboy
+    restart: on-failure
+    depends_on:
+      - universe
+      - nats
+      - timetraveler
+    environment:
+      NATS_URL: tcp://nats:4222
+      COWBOY_IDENT: John
+    volumes:
+      - ./cowboys.json:/srv/cowboys.json
+  cowboy2:
+    image: docker.io/creckx/foo5aiye:v1
+    command: /usr/local/bin/cowboy
+    restart: on-failure
+    depends_on:
+      - universe
+      - nats
+      - timetraveler
+    environment:
+      NATS_URL: tcp://nats:4222
+      COWBOY_IDENT: Bill
+    volumes:
+      - ./cowboys.json:/srv/cowboys.json
+  cowboy3:
+    image: docker.io/creckx/foo5aiye:v1
+    command: /usr/local/bin/cowboy
+    restart: on-failure
+    depends_on:
+      - universe
+      - nats
+      - timetraveler
+    environment:
+      NATS_URL: tcp://nats:4222
+      COWBOY_IDENT: Sam
+    volumes:
+      - ./cowboys.json:/srv/cowboys.json
+  cowboy4:
+    image: docker.io/creckx/foo5aiye:v1
+    command: /usr/local/bin/cowboy
+    restart: on-failure
+    depends_on:
+      - universe
+      - nats
+      - timetraveler
+    environment:
+      NATS_URL: tcp://nats:4222
+      COWBOY_IDENT: Peter
+    volumes:
+      - ./cowboys.json:/srv/cowboys.json
+  cowboy5:
+    image: docker.io/creckx/foo5aiye:v1
+    command: /usr/local/bin/cowboy
+    restart: on-failure
+    depends_on:
+      - universe
+      - nats
+      - timetraveler
+    environment:
+      NATS_URL: tcp://nats:4222
+      COWBOY_IDENT: Philip
+      COWBOYS_PATH: /srv/cowboys.json
+    volumes:
+      - ./cowboys.json:/srv/cowboys.json
 networks:
   mynetwork:
