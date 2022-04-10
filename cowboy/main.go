@@ -96,7 +96,7 @@ func (c *CowboyFight) handler(message common.Message) {
 
 				// Check if I am the last one
 				if len(c.aliveEnemies()) == 0 {
-					log.Printf("TICK %d: I won!\n", c.tick)
+					log.Printf("TICK %d: I win!\n", c.tick)
 					c.ExitCh <- true
 					return
 				}
