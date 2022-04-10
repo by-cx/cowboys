@@ -54,20 +54,22 @@ Three services:
 
 All three services are configurable but the most important is output of *timetraveler* that logs progress of the battle.
 
-To boot up everything run this:
+To boot up everything do this:
 
 ```shell
 docker-compose up -d
 docker-compose logs -f timetraveler
 ```
 
-To check if all is good run this:
+The *timetraveler* log contains all info about the battle. When the battle finishes only *nats* service suppose to be up. All other containers will stop.
+
+To check if the code should be ok run this:
 
 ```shell
 make test
 ```
 
-To build a new docker image follow this:
+To build a new docker image run this:
 
 ```shell
 make image
