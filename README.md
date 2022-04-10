@@ -57,6 +57,7 @@ All three services are configurable but the most important is output of *timetra
 To boot up everything do this:
 
 ```shell
+# This doesn't work with podman-compose!
 docker-compose up -d
 docker-compose logs -f timetraveler
 ```
