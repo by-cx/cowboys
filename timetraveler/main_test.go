@@ -56,7 +56,7 @@ func TestTimeTravelerFormatTickMessage(t *testing.T) {
 		Tick:   123,
 		Source: "universe",
 	})
-	assert.Equal(t, "new tick", line)
+	assert.Contains(t, line, "new tick, alive cowboys I know about:")
 }
 
 func TestTimeTravelerFormatShotMessage(t *testing.T) {

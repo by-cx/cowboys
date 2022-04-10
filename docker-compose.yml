@@ -4,13 +4,16 @@ services:
     image: docker.io/library/nats:2.7-alpine
     restart: unless-stopped
     networks:
-    - mynetwork
+      - mynetwork
     ports:
-    - 4222:4222
+    - 4222:4222 # This is for development, not needed to run the whole battle
+    hostname: nats
   universe:
     image: docker.io/creckx/foo5aiye:v1
     command: /usr/local/bin/universe
     restart: on-failure
+    networks:
+      - mynetwork
     depends_on:
     - nats
     environment:
@@ -21,6 +24,8 @@ services:
     image: docker.io/creckx/foo5aiye:v1
     command: /usr/local/bin/timetraveler
     restart: on-failure
+    networks:
+      - mynetwork
     depends_on:
       - universe
       - nats
@@ -30,6 +35,8 @@ services:
     image: docker.io/creckx/foo5aiye:v1
     command: /usr/local/bin/cowboy
     restart: on-failure
+    networks:
+      - mynetwork
     depends_on:
       - universe
       - nats
@@ -37,12 +44,15 @@ services:
     environment:
       NATS_URL: tcp://nats:4222
       COWBOY_IDENT: John
+      COWBOYS_PATH: /srv/cowboys.json
     volumes:
       - ./cowboys.json:/srv/cowboys.json
   cowboy2:
     image: docker.io/creckx/foo5aiye:v1
     command: /usr/local/bin/cowboy
     restart: on-failure
+    networks:
+      - mynetwork
     depends_on:
       - universe
       - nats
@@ -50,12 +60,15 @@ services:
     environment:
       NATS_URL: tcp://nats:4222
       COWBOY_IDENT: Bill
+      COWBOYS_PATH: /srv/cowboys.json
     volumes:
       - ./cowboys.json:/srv/cowboys.json
   cowboy3:
     image: docker.io/creckx/foo5aiye:v1
     command: /usr/local/bin/cowboy
     restart: on-failure
+    networks:
+      - mynetwork
     depends_on:
       - universe
       - nats
@@ -63,12 +76,15 @@ services:
     environment:
       NATS_URL: tcp://nats:4222
       COWBOY_IDENT: Sam
+      COWBOYS_PATH: /srv/cowboys.json
     volumes:
       - ./cowboys.json:/srv/cowboys.json
   cowboy4:
     image: docker.io/creckx/foo5aiye:v1
     command: /usr/local/bin/cowboy
     restart: on-failure
+    networks:
+      - mynetwork
     depends_on:
       - universe
       - nats
@@ -76,12 +92,15 @@ services:
     environment:
       NATS_URL: tcp://nats:4222
       COWBOY_IDENT: Peter
+      COWBOYS_PATH: /srv/cowboys.json
     volumes:
       - ./cowboys.json:/srv/cowboys.json
   cowboy5:
     image: docker.io/creckx/foo5aiye:v1
     command: /usr/local/bin/cowboy
     restart: on-failure
+    networks:
+      - mynetwork
     depends_on:
       - universe
       - nats
@@ -94,3 +113,4 @@ services:
       - ./cowboys.json:/srv/cowboys.json
 networks:
   mynetwork:
+    driver: bridge

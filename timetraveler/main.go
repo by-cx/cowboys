@@ -32,7 +32,8 @@ func (t *TimeTraveler) formatCowboy(cowboy common.Cowboy) string {
 }
 
 func (t *TimeTraveler) formatTickMessage(message common.Message) string {
-	return "new tick"
+	aliveCowboys := t.aliveCowboys()
+	return fmt.Sprintf("new tick, alive cowboys I know about: %s", strings.Join(aliveCowboys, ", "))
 }
 
 func (t *TimeTraveler) formatShotMessage(message common.Message) string {
@@ -58,10 +59,12 @@ func (t *TimeTraveler) Handler(message common.Message) {
 			aliveCowboys := t.aliveCowboys()
 			if len(aliveCowboys) == 0 {
 				log.Printf("(%s) TICK %d: all cowboys are dead", message.Source, message.Tick)
+
+				t.TimeToLeaveCh <- true
 			} else if len(aliveCowboys) == 1 {
 				log.Printf("(%s) TICK %d: we have the winner! %s", message.Source, message.Tick, aliveCowboys[0])
-			} else {
-				log.Printf("(%s) TICK %d: alive cowboys I know about: %s", message.Source, message.Tick, strings.Join(aliveCowboys, ", "))
+
+				t.TimeToLeaveCh <- true
 			}
 		}
 	} else if message.Type == common.MessageTypeShoot {
