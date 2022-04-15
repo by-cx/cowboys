@@ -116,6 +116,8 @@ func main() {
 	// Initiate the message driver
 	if config.Driver == "nats" {
 		universe.Driver, err = driver_nats.Init(universe.Handler)
+		// Close anything related to the communication driver
+		defer universe.Driver.Close()
 		if err != nil {
 			log.Println("Driver initiation failed:", err)
 		}
@@ -128,7 +130,4 @@ func main() {
 	universe.Ticking()
 
 	log.Println("This universe is not needed anymore")
-
-	// Close anything related to the communication driver
-	universe.Driver.Close()
 }
