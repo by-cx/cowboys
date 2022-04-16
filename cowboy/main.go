@@ -4,6 +4,7 @@ import (
 	"log"
 	"math/rand"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/by-cx/cowboys/common"
@@ -14,10 +15,35 @@ import (
 type CowboyFight struct {
 	Cowboy  common.Cowboy
 	Driver  common.Driver
-	Enemies common.Cowboys
+	enemies common.Cowboys
 	ExitCh  chan bool
 
-	tick int // Unit of time used to synchronize the whole cluster of cowboys
+	tick      int // Unit of time used to synchronize the whole cluster of cowboys
+	enemyLock sync.RWMutex
+}
+
+func (c *CowboyFight) readEnemy(name string) common.Cowboy {
+	c.enemyLock.RLock()
+	defer c.enemyLock.RUnlock()
+	return c.enemies[name]
+}
+
+func (c *CowboyFight) readEnemies() common.Cowboys {
+	c.enemyLock.RLock()
+	defer c.enemyLock.RUnlock()
+	return c.enemies
+}
+
+func (c *CowboyFight) writeEnemy(name string, cowboy common.Cowboy) {
+	c.enemyLock.Lock()
+	defer c.enemyLock.Unlock()
+	c.enemies[name] = cowboy
+}
+
+func (c *CowboyFight) writeEnemies(cowboys common.Cowboys) {
+	c.enemyLock.Lock()
+	defer c.enemyLock.Unlock()
+	c.enemies = cowboys
 }
 
 // Receives a shot from another cowboy
@@ -32,7 +58,7 @@ func (c *CowboyFight) receiveShot(message common.Message) {
 // Return list of enemies that are still alive
 func (c *CowboyFight) aliveEnemies() []string {
 	aliveEnemies := []string{}
-	for name, cowboy := range c.Enemies {
+	for name, cowboy := range c.readEnemies() {
 		if cowboy.Health > 0 {
 			aliveEnemies = append(aliveEnemies, name)
 		}
@@ -57,7 +83,7 @@ func (c *CowboyFight) shoot() {
 		Source:    c.Cowboy.Name,
 		Type:      common.MessageTypeShoot,
 		Tick:      c.tick,
-		Cowboy:    c.Enemies[enemy],
+		Cowboy:    c.readEnemy(enemy),
 		ShotValue: damage,
 	})
 }
@@ -110,7 +136,7 @@ func (c *CowboyFight) handler(message common.Message) {
 	// Store status update of my enemies
 	if message.Type == common.MessageTypeStatus {
 		if message.Cowboy.Name != c.Cowboy.Name {
-			c.Enemies[message.Cowboy.Name] = message.Cowboy
+			c.writeEnemy(message.Cowboy.Name, message.Cowboy)
 		}
 		return
 	}
@@ -124,7 +150,9 @@ func (c *CowboyFight) handler(message common.Message) {
 func main() {
 	config := getConfig()
 	var driver common.Driver
-	cowboyFight := CowboyFight{}
+	cowboyFight := CowboyFight{
+		enemyLock: sync.RWMutex{},
+	}
 
 	// Load info about our cowboy
 	cowboy, enemies, err := common.CowboyLoader(config.CowboysPath, config.CowboyIdent)
@@ -145,7 +173,7 @@ func main() {
 	// Continue with initiating CowboyFight instance
 	cowboyFight.Cowboy = cowboy
 	cowboyFight.Driver = driver
-	cowboyFight.Enemies = enemies
+	cowboyFight.writeEnemies(enemies)
 	cowboyFight.ExitCh = make(chan bool)
 	cowboyFight.ShareStatus()
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	"github.com/by-cx/cowboys/common"
@@ -10,18 +11,43 @@ import (
 
 // Universe gives cowboys space time where they can create their own history.
 type Universe struct {
-	Cowboys           common.Cowboys
+	cowboys           common.Cowboys
 	ExpectedCowboys   int
 	SleepBetweenTicks int
 	Driver            common.Driver
 
-	tick int
+	tick        int
+	cowboysLock sync.RWMutex
+}
+
+func (u *Universe) readCowboy(name string) common.Cowboy {
+	u.cowboysLock.RLock()
+	defer u.cowboysLock.RUnlock()
+	return u.cowboys[name]
+}
+
+func (u *Universe) readCowboys() common.Cowboys {
+	u.cowboysLock.RLock()
+	defer u.cowboysLock.RUnlock()
+	return u.cowboys
+}
+
+func (u *Universe) writeCowboy(name string, cowboy common.Cowboy) {
+	u.cowboysLock.Lock()
+	defer u.cowboysLock.Unlock()
+	u.cowboys[name] = cowboy
+}
+
+func (u *Universe) writeCowboys(cowboys common.Cowboys) {
+	u.cowboysLock.Lock()
+	defer u.cowboysLock.Unlock()
+	u.cowboys = cowboys
 }
 
 // Message handler
 func (u *Universe) Handler(message common.Message) {
 	if message.Type == common.MessageTypeStatus {
-		u.Cowboys[message.Cowboy.Name] = message.Cowboy
+		u.writeCowboy(message.Cowboy.Name, message.Cowboy)
 	}
 }
 
@@ -48,7 +74,7 @@ func (u *Universe) doTick() {
 // Return number of alive cowboys
 func (u *Universe) aliveCowboys() int {
 	alive := 0
-	for _, cowboy := range u.Cowboys {
+	for _, cowboy := range u.readCowboys() {
 		if cowboy.Health > 0 {
 			alive += 1
 		}
@@ -85,9 +111,9 @@ func (u *Universe) Ticking() {
 // Returns true when all cowboys are ready
 func (u *Universe) ready() bool {
 	for {
-		log.Printf("TICK %d: waiting for cowboys to be ready (%d/%d)\n", u.tick, len(u.Cowboys), u.ExpectedCowboys)
+		log.Printf("TICK %d: waiting for cowboys to be ready (%d/%d)\n", u.tick, len(u.readCowboys()), u.ExpectedCowboys)
 
-		if u.ExpectedCowboys == len(u.Cowboys) {
+		if u.ExpectedCowboys == len(u.readCowboys()) {
 			return true
 		}
 
@@ -108,7 +134,7 @@ func main() {
 
 	// Initiate Universe
 	universe := Universe{
-		Cowboys:           make(common.Cowboys),
+		cowboys:           make(common.Cowboys),
 		SleepBetweenTicks: config.SleepBetweenTicks,
 		ExpectedCowboys:   len(cowboys),
 	}

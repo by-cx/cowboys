@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
 
 	// Initiate the universe and driver to test
 	universe = Universe{
-		Cowboys:           make(common.Cowboys),
+		cowboys:           make(common.Cowboys),
 		SleepBetweenTicks: 1,
 		ExpectedCowboys:   len(cowboys),
 	}
@@ -47,7 +47,7 @@ func TestHandler(t *testing.T) {
 		Cowboy: cowboys["Bill"],
 	})
 
-	assert.Equal(t, cowboys["Bill"].Health, universe.Cowboys["Bill"].Health)
+	assert.Equal(t, cowboys["Bill"].Health, universe.readCowboy("Bill").Health)
 }
 
 func TestDoZeroTick(t *testing.T) {
@@ -62,8 +62,10 @@ func TestDoZeroTick(t *testing.T) {
 }
 
 func TestDoTick(t *testing.T) {
+	syncCh := make(chan bool, 2)
 	go func() {
 		universe.doTick()
+		syncCh <- true
 	}()
 
 	message := <-driver.OutgoingMessageCh
@@ -73,16 +75,20 @@ func TestDoTick(t *testing.T) {
 	firstTick := message.Tick
 
 	go func() {
+		<-syncCh
 		universe.doTick()
+		syncCh <- true
 	}()
 
 	message = <-driver.OutgoingMessageCh
 	assert.Equal(t, message.Type, common.MessageTypeTick)
 	assert.Equal(t, firstTick+1, message.Tick)
+
+	<-syncCh
 }
 
 func TestTicking(t *testing.T) {
-	universe.Cowboys = cowboys
+	universe.writeCowboys(cowboys)
 	ch := make(chan bool, 1)
 
 	go func() {
@@ -97,9 +103,9 @@ func TestTicking(t *testing.T) {
 
 	// After all cowboys are dead, we expect one more tick and then stop
 	for name := range cowboys {
-		cowboy := universe.Cowboys[name]
+		cowboy := universe.readCowboy(name)
 		cowboy.Health = 0
-		universe.Cowboys[name] = cowboy
+		universe.writeCowboy(name, cowboy)
 	}
 
 	// Check if final tick has been sent
@@ -112,7 +118,7 @@ func TestTicking(t *testing.T) {
 }
 
 func TestReady(t *testing.T) {
-	universe.Cowboys = make(common.Cowboys)
+	universe.cowboys = make(common.Cowboys)
 	ch := make(chan bool, 1)
 
 	go func() {
@@ -123,7 +129,46 @@ func TestReady(t *testing.T) {
 	assert.Equal(t, message.Type, common.MessageTypeTick)
 	assert.Equal(t, 0, message.Tick)
 
-	universe.Cowboys = cowboys
+	universe.writeCowboys(cowboys)
 
 	assert.True(t, <-ch)
+}
+
+func TestUniverseReadCowboy(t *testing.T) {
+	newCowboys := cowboys
+	newCowboys["John"] = common.Cowboy{
+		Name: "Someoneelse",
+	}
+	universe.writeCowboys(newCowboys)
+
+	assert.Equal(t, "Someoneelse", universe.cowboys["John"].Name)
+}
+
+func TestUniverseReadCowboys(t *testing.T) {
+	newCowboys := cowboys
+	newCowboys["John"] = common.Cowboy{
+		Name: "Someoneelse",
+	}
+	universe.writeCowboys(newCowboys)
+
+	assert.Equal(t, "Someoneelse", universe.readCowboy("John").Name)
+}
+
+func TestUniverseWriteCowboy(t *testing.T) {
+	newCowboys := cowboys
+	newCowboys["John"] = common.Cowboy{
+		Name: "Someoneelse",
+	}
+	universe.writeCowboys(newCowboys)
+	universe.writeCowboy("Newone", common.Cowboy{Name: "Anotherone"})
+	assert.Equal(t, "Anotherone", universe.readCowboy("Newone").Name)
+}
+
+func TestUniverseWriteCowboys(t *testing.T) {
+	newCowboys := cowboys
+	newCowboys["John"] = common.Cowboy{
+		Name: "Someoneelse",
+	}
+	universe.writeCowboys(newCowboys)
+	assert.Equal(t, "Anotherone", universe.readCowboy("Newone").Name)
 }

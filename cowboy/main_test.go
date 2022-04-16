@@ -14,6 +14,7 @@ import (
 var driver driver_dummy.DummyDriver
 var cowboyFight CowboyFight
 var backupCowboy common.Cowboy
+var backupEnemies common.Cowboys
 
 const testCowboyName = "John"
 
@@ -28,9 +29,10 @@ func TestMain(m *testing.M) {
 	}
 
 	backupCowboy = cowboy
+	backupEnemies = enemies
 	cowboyFight.Cowboy = cowboy
 	cowboyFight.Driver = driver
-	cowboyFight.Enemies = enemies
+	cowboyFight.writeEnemies(enemies)
 	cowboyFight.ExitCh = make(chan bool)
 
 	go func() {
@@ -87,7 +89,7 @@ func TestCowboyFightHandlerOddTick(t *testing.T) {
 }
 
 func TestCowboyFightHandlerEnemiesStatusUpdate(t *testing.T) {
-	assert.Equal(t, cowboyFight.Enemies["Bill"].Health, 8)
+	assert.Equal(t, cowboyFight.readEnemy("Bill").Health, 8)
 
 	func() {
 		driver.InjectMessageCh <- common.Message{
@@ -105,13 +107,13 @@ func TestCowboyFightHandlerEnemiesStatusUpdate(t *testing.T) {
 	// TODO: this is opportunistic testing and it deserve a better way
 	// The problem is that we don't have any way how to detect that message handler finished his job.
 	time.Sleep(1 * time.Second)
-	assert.Equal(t, cowboyFight.Enemies["Bill"].Health, 1)
+	assert.Equal(t, cowboyFight.readEnemy("Bill").Health, 1)
 }
 
 func TestCowboyFightHandlerEvenTick(t *testing.T) {
 	// Test even tick
-	backupEnemies := cowboyFight.Enemies
-	cowboyFight.Enemies = make(common.Cowboys)
+	backupEnemies := cowboyFight.enemies
+	cowboyFight.enemies = make(common.Cowboys)
 
 	func() {
 		driver.InjectMessageCh <- common.Message{
@@ -124,7 +126,7 @@ func TestCowboyFightHandlerEvenTick(t *testing.T) {
 	//! This can potentially freeze the testing
 	assert.Equal(t, true, <-cowboyFight.ExitCh)
 
-	cowboyFight.Enemies = backupEnemies
+	cowboyFight.enemies = backupEnemies
 }
 
 func TestCowboyFightHandlerShootToDead(t *testing.T) {
@@ -191,15 +193,15 @@ func TestCowboyFightReceiveShot(t *testing.T) {
 			Source:    "Sam",
 			Type:      common.MessageTypeShoot,
 			Tick:      1,
-			Cowboy:    cowboyFight.Cowboy,
+			Cowboy:    backupCowboy,
 			ShotValue: 6,
 		})
 	}()
 
 	time.Sleep(1 * time.Second)
-	assert.Equal(t, 4, cowboyFight.Cowboy.Health)
 	message := <-driver.OutgoingMessageCh
 	assert.Equal(t, message.Type, common.MessageTypeStatus)
+	assert.Equal(t, 4, cowboyFight.Cowboy.Health)
 }
 
 func TestCowboyFightAliveEnemies(t *testing.T) {
@@ -233,4 +235,43 @@ func TestCowboyFightShareStatus(t *testing.T) {
 	assert.Equal(t, message.Cowboy, backupCowboy)
 	assert.Equal(t, message.Cowboy.MaxHealth, backupCowboy.Health)
 	assert.Greater(t, message.Cowboy.MaxHealth, 0)
+}
+
+func TestCowboyFightReadEnemy(t *testing.T) {
+	enemies := backupEnemies
+	enemies["John"] = common.Cowboy{
+		Name: "Someoneelse",
+	}
+	cowboyFight.writeEnemies(enemies)
+
+	assert.Equal(t, "Someoneelse", cowboyFight.enemies["John"].Name)
+}
+
+func TestCowboyFightReadEnemies(t *testing.T) {
+	enemies := backupEnemies
+	enemies["John"] = common.Cowboy{
+		Name: "Someoneelse",
+	}
+	cowboyFight.writeEnemies(enemies)
+
+	assert.Equal(t, "Someoneelse", cowboyFight.readEnemy("John").Name)
+}
+
+func TestCowboyFightWriteEnemy(t *testing.T) {
+	enemies := backupEnemies
+	enemies["John"] = common.Cowboy{
+		Name: "Someoneelse",
+	}
+	cowboyFight.writeEnemies(enemies)
+	cowboyFight.writeEnemy("Newone", common.Cowboy{Name: "Anotherone"})
+	assert.Equal(t, "Anotherone", cowboyFight.readEnemy("Newone").Name)
+}
+
+func TestCowboyFightWriteEnemies(t *testing.T) {
+	enemies := backupEnemies
+	enemies["John"] = common.Cowboy{
+		Name: "Someoneelse",
+	}
+	cowboyFight.writeEnemies(enemies)
+	assert.Equal(t, "Anotherone", cowboyFight.readEnemy("Newone").Name)
 }
