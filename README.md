@@ -1,3 +1,7 @@
+**IMPORTANT!**
+
+If you encountered this project because you got it as a take home project in your interview make sure you run _build_, _test_ and _run_ with `-race` flag. I made the mistake and left there a few race conditions and it kicked back hard.
+
 # Cowboys problem
 
 We have a group of cowboys and only one can leave the battlefield alive.
